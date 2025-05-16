@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: django-python-editor
+    name: code_Editor.py
     env: python
     buildCommand: ""
     startCommand: gunicorn code_editor.wsgi:application
