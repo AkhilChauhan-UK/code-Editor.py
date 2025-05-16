@@ -3,7 +3,8 @@ services:
     name: django-python-editor
     env: python
     buildCommand: ""
-    startCommand: gunicorn minicodeeditor.wsgi
+    startCommand: gunicorn code_editor.wsgi:application
+
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: yourproject.settings
