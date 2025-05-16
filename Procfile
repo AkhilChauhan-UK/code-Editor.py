@@ -1,1 +1,1 @@
-web: gunicorn myeditor.wsgi
+web: gunicorn editor.wsgi
