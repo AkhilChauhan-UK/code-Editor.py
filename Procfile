@@ -1,1 +1,1 @@
-gunicorn code_editor.wsgi:application
+gunicorn minicodeeditor.wsgi:application

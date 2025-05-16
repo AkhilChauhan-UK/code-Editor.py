@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: code_Editor.py
+    name: editor
     env: python
     buildCommand: ""
-    startCommand: gunicorn code_editor.wsgi:application
+    startCommand: gunicorn minicodeeditor.wsgi:application
 
     envVars:
       - key: DJANGO_SETTINGS_MODULE
