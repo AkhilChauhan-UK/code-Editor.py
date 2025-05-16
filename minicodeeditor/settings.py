@@ -26,7 +26,9 @@ SECRET_KEY = 'django-insecure-1w^$*puh7z1f%o#l136385x-f1ksi5rc4o97i5kfkyxqj!ld9_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['minicodeeditor.onrender.com']
+ALLOWED_HOSTS = ['code-editor-py.onrender.com',  # ✅ Add your live domain here
+    'localhost',                          # Optional: For local dev
+    '127.0.0.1',]
 
 # Application definition
 
