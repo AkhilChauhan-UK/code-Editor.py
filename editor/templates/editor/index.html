@@ -1,0 +1,309 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Python Online Editor - Minversion</title>
+  <link rel="icon" type="image/png" href="{% static 'python.png' %}">
+
+
+  <!-- CodeMirror CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/theme/dracula.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/theme/eclipse.min.css" />
+
+  <style>
+    body {
+      font-family: 'Fira Code', monospace;
+      background: #1e1e2f;
+      color: #eee;
+      margin: 0;
+      padding: 20px;
+      transition: background 0.3s ease;
+      user-select: none;
+    }
+    body.light {
+      background: #f2f2f2;
+      color: #111;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .header h1 {
+      font-size: 1.8rem;
+      color: #66fcf1;
+      margin: 0 0 10px 0;
+      flex: 1 0 200px;
+      user-select: text;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      flex: 3 1 auto;
+    }
+    .controls button, .controls input[type="file"] {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      user-select: none;
+      background: #45a29e;
+      color: white;
+      transition: background 0.3s ease;
+    }
+    .controls button:hover, .controls input[type="file"]:hover {
+      background: #3b8d88;
+    }
+    .controls input[type="file"] {
+      padding: 6px 8px;
+      color: #eee;
+      background: #2d2d44;
+    }
+    .CodeMirror {
+      height: 350px;
+      font-size: 16px;
+      border-radius: 6px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+      transition: font-size 0.2s ease;
+    }
+    .output {
+      background: #0b0c10;
+      padding: 15px;
+      border-radius: 8px;
+      color: #00ff88;
+      white-space: pre-wrap;
+      min-height: 150px;
+      font-size: 14px;
+      user-select: text;
+      overflow-y: auto;
+      max-height: 300px;
+      box-shadow: inset 0 0 5px #00ff88;
+      position: relative;
+    }
+    body.light .output {
+      background: #eaeaea;
+      color: #333;
+      box-shadow: inset 0 0 5px #333;
+    }
+    .output.loading::after {
+      content: "⏳ Running...";
+      position: absolute;
+      right: 15px;
+      top: 15px;
+      font-weight: bold;
+      color: #f39c12;
+    }
+    .line-count {
+      font-size: 12px;
+      color: #888;
+      margin-top: 5px;
+      user-select: none;
+    }
+    @media (max-width: 600px) {
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .header h1 {
+        margin-bottom: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧠 Python Code Editor</h1>
+      <div class="controls" role="group" aria-label="Editor controls">
+        <button onclick="toggleTheme()" aria-label="Toggle Light/Dark theme">🌓 Theme</button>
+        <button onclick="zoomIn()" aria-label="Increase font size">A+</button>
+        <button onclick="zoomOut()" aria-label="Decrease font size">A-</button>
+        <button onclick="resetZoom()" aria-label="Reset font size">A Reset</button>
+        <input type="file" accept=".py" onchange="loadFile(event)" aria-label="Upload Python file">
+        <button onclick="downloadCode()" aria-label="Download code as script.py">⬇ Save</button>
+        <button onclick="runCode()" aria-label="Run Python code">▶ Run (Ctrl+Enter)</button>
+        <button onclick="clearOutput()" aria-label="Clear output area">✖ Clear Output</button>
+        <button onclick="resetEditor()" aria-label="Reset editor content">↻ Reset Editor</button>
+      </div>
+    </div>
+
+    <textarea id="code" aria-label="Code editor"></textarea>
+    <div class="line-count" id="lineCount">Lines: 0</div>
+
+    <h3>💻 Output:</h3>
+    <div class="output" id="output" aria-live="polite" role="region" tabindex="0">Waiting for execution...</div>
+  </div>
+
+  <!-- CodeMirror Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/mode/python/python.min.js"></script>
+
+  <script>
+    const editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+      lineNumbers: true,
+      mode: "python",
+      theme: "dracula",
+      indentUnit: 4,
+      tabSize: 4,
+      autofocus: true,
+    });
+
+    // Save/load code to/from localStorage
+    function saveCode() {
+      localStorage.setItem("code", editor.getValue());
+    }
+    function loadSavedCode() {
+      const saved = localStorage.getItem("code");
+      if (saved) editor.setValue(saved);
+    }
+    loadSavedCode();
+
+    editor.on("change", () => {
+      saveCode();
+      updateLineCount();
+    });
+
+    // Update line count
+    function updateLineCount() {
+      const count = editor.lineCount();
+      document.getElementById("lineCount").innerText = "Lines: " + count;
+    }
+    updateLineCount();
+
+    // Theme toggle
+    function toggleTheme() {
+      document.body.classList.toggle("light");
+      const theme = document.body.classList.contains("light") ? "eclipse" : "dracula";
+      editor.setOption("theme", theme);
+      localStorage.setItem("editor-theme", theme);
+    }
+    // Apply saved theme
+    const savedTheme = localStorage.getItem("editor-theme");
+    if (savedTheme) {
+      editor.setOption("theme", savedTheme);
+      if (savedTheme === "eclipse") document.body.classList.add("light");
+    }
+
+    // Font size controls
+    let baseFontSize = 16;
+    function zoomIn() {
+      baseFontSize = Math.min(baseFontSize + 2, 32);
+      editor.getWrapperElement().style.fontSize = baseFontSize + "px";
+      editor.refresh();
+    }
+    function zoomOut() {
+      baseFontSize = Math.max(baseFontSize - 2, 10);
+      editor.getWrapperElement().style.fontSize = baseFontSize + "px";
+      editor.refresh();
+    }
+    function resetZoom() {
+      baseFontSize = 16;
+      editor.getWrapperElement().style.fontSize = baseFontSize + "px";
+      editor.refresh();
+    }
+
+    // Load file from upload input
+    function loadFile(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          editor.setValue(e.target.result);
+          saveCode();
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    // Download code as file
+    function downloadCode() {
+      const blob = new Blob([editor.getValue()], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "script.py";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    // Clear output
+    function clearOutput() {
+      const output = document.getElementById("output");
+      output.innerText = "";
+      output.classList.remove("loading");
+    }
+
+    // Reset editor to empty
+    function resetEditor() {
+      if (confirm("Are you sure you want to clear the editor?")) {
+        editor.setValue("");
+        saveCode();
+        updateLineCount();
+      }
+    }
+
+    // Run code (send to backend)
+    async function runCode() {
+      const output = document.getElementById("output");
+      output.classList.add("loading");
+      output.innerText = "";
+
+      try {
+        const res = await fetch("{% url 'run_code' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": getCookie("csrftoken"),
+          },
+          body: "code=" + encodeURIComponent(editor.getValue()),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        output.innerText = data.output;
+      } catch (err) {
+        output.innerText = "❌ Error: " + err.message;
+      }
+      output.classList.remove("loading");
+      output.focus();
+    }
+
+    // Keyboard shortcut: Ctrl+Enter to run
+    editor.on("keydown", (cm, event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        runCode();
+      }
+    });
+
+    // CSRF cookie helper
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + "=")) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+  </script>
+</body>
+</html>
